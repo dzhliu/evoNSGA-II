@@ -22,8 +22,22 @@ public:
 
     virtual void PerformGeneration(std::vector<Node *> & population) override;
 
+    void PerformGeneration_ORI(std::vector<Node*> & population);
+
     std::vector<std::vector<Node*>> FastNonDominatedSorting(std::vector<Node*> & population);
+    
     void ComputeCrowndingDistance(std::vector<Node *> & front);
+
+    void save_final_population(std::vector<Node*> & population);
+
+    std::vector<Node*> archive;
+
+    void update_archive(std::vector<Node *> & population);
+
+    void MakeOffspring_NSGA2GENERATIONHANDLER(const std::vector<Node *> & population, const std::vector<Node*> & selected_parents, std::vector<Node *> & offspring);
+
+
+    std::vector<std::vector<Node*>> FastNonDominatedSorting_IMPROVEDHEFFICIENCY(std::vector<Node*> & population);
 
 private:
 

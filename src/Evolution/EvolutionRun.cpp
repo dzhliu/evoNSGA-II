@@ -13,6 +13,7 @@
 
 #include "GPGOMEA/Evolution/EvolutionRun.h"
 
+#include <malloc.h>
 
 using namespace std;
 using namespace arma;
@@ -33,7 +34,6 @@ void EvolutionRun::Initialize() {
 }
 
 void EvolutionRun::DoGeneration() {
-
     // create semantic library if needed
     if (config->semantic_variation) {
         if (config->semback_library_type == SemanticLibraryType::SemLibRandomDynamic)
@@ -41,10 +41,22 @@ void EvolutionRun::DoGeneration() {
         else if (config->semback_library_type == SemanticLibraryType::SemLibPopulation)
             semantic_library->GeneratePopulationLibrary(config->semback_library_max_height, config->semback_library_max_size, population, *fitness, config->caching);
     }
-
     // perform generation
-    generation_handler->PerformGeneration(population);
+    std::cout<<"execute PerformGeneration:generation_handler->PerformGeneration(population)"<<std::endl;
 
+    std::cout<<"start to execute malloc_trim(0)...";
+    malloc_trim(0); 
+    std::cout<<"finished!"<<std::endl;
+
+    generation_handler->PerformGeneration(population);
+   
+    unsigned int sum_exp_len = 0;
+    for(auto n : population){
+        sum_exp_len += n->GetSubtreeNodes(true).size();
+    }
+    std::cout<<"after this iteration, the sum number of exp length in population is:"<<sum_exp_len <<std::endl;
+    
+    std::cout<<"finish one iteration!"<<std::endl;
     // update stats
     pop_fitnesses = fitness->GetPopulationFitness(population, false, config->caching);
     Node * best = population[ index_min(pop_fitnesses) ]; 
@@ -58,10 +70,9 @@ void EvolutionRun::DoGeneration() {
         elitist = best->CloneSubtree();
         elitist_size = best_size;
     }
-
     // update mo_archive
     if (is_multiobj){
-        // For each solution in the population with best rank, try to fit it in the archive
+        // DEPRECATED: For each solution in the population with best rank, try to fit it in the archive
         for(Node * solution : population) {
             if (solution->rank != 0)
                 continue;
@@ -103,6 +114,8 @@ void EvolutionRun::DoGeneration() {
             mo_archive = updated_archive;
         }
     }
+
+    // TODO: log what you like
 
 
 }

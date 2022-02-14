@@ -22,6 +22,9 @@ Node::Node(Operator * op) {
     this->op = op;
     this->parent = NULL;
     this->cached_fitness = arma::datum::inf;
+    this->strength = 0;
+    this->SPEA2_fitness = 0;
+    this->SPEA2_distance = 0;
 }
 
 Node::Node(const Node& orig) {
@@ -33,6 +36,18 @@ Node::Node(const Node& orig) {
     cached_output = orig.cached_output;
     rank = orig.rank;
     crowding_distance = orig.crowding_distance;
+    strength = orig.strength;
+    SPEA2_fitness = orig.SPEA2_fitness;
+    SPEA2_distance = orig.SPEA2_distance;
+
+    parent_exp_len = orig.parent_exp_len;
+    parent_fitness = orig.parent_fitness;
+    parent2_exp_len = orig.parent2_exp_len;
+    parent2_fitness = orig.parent2_fitness;
+    generate_type = orig.generate_type;
+    
+    semantic_description = orig.semantic_description;
+    
 }
 
 Node::~Node() {
@@ -219,6 +234,18 @@ Node* Node::CloneSubtree() const {
     return new_node;
 }
 
+Node* Node::CloneSubtree(bool if_recursion) const {
+    if(if_recursion == true)
+        std::cout<<"...==CloneSubtree==..."<<std::endl;
+    Node * new_node = new Node(*this);
+    for (Node * c : children) {
+        Node * new_child = c->CloneSubtree();
+        new_node->AppendChild(new_child);
+    }
+    return new_node;
+}
+
+
 std::string Node::GetSubtreeExpression(bool only_active_nodes) {
     string expr = "";
     GetSubtreeExpressionRecursive(expr, only_active_nodes);
@@ -264,6 +291,18 @@ void Node::ClearSubtree() {
         delete subtree_nodes[i];
     delete this;
 }
+
+
+void Node::ClearSubtree(bool if_recursion) {
+    if(if_recursion == true)
+        std::cout<<"...==ClearSubtree==..."<<std::endl;
+    std::vector<Node *> subtree_nodes = GetSubtreeNodes(false);
+    for (size_t i = 1; i < subtree_nodes.size(); i++)
+        delete subtree_nodes[i];
+    delete this;
+}
+
+
 
 size_t Node::GetRelativeIndex() {
     if (parent == NULL)
@@ -357,11 +396,22 @@ std::vector<arma::vec> Node::GetDesiredOutput(const std::vector<arma::vec> & Y, 
 
 }
 
+//alpha dominance (not the adaptive version)
+ bool Node::Dominates(Node * o, double alpha_param0, double alpha_param1)//param0 for objective[0] and param1 for objective[1]
+ {
+    double objective_difference1 = cached_objectives[0] - o->cached_objectives[0] + alpha_param0 * (cached_objectives[1] - o->cached_objectives[1]);
+    double objective_difference2 = cached_objectives[1] - o->cached_objectives[1] + alpha_param1 * (cached_objectives[0] - o->cached_objectives[0]);
+    if(objective_difference1 < 0 && objective_difference2 <= 0 || objective_difference1 <= 0 && objective_difference2 < 0)
+        return true;
+    else
+        return false;
+ }
 
 
 bool Node::Dominates(Node * o) {
     bool strictly_better_somewhere = false;
-    for(size_t i = 0; i < cached_objectives.n_elem; i++) {
+    for(size_t i = 0; i < cached_objectives.n_elem; i++) 
+    {
         if (cached_objectives[i] < o->cached_objectives[i])
             strictly_better_somewhere = true;
         else if (cached_objectives[i] > o->cached_objectives[i])

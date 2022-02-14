@@ -56,15 +56,13 @@ void Fitness::SetFitnessCases(const arma::mat& X, FitnessCasesType fct) {
         ValidationY = Y;
         ValidationX = Xx;
     } else {
-        throw std::runtime_error("Fitness::SetFitnessCases invalid fitness cases type provided.");
+        throw std::runtime_error("Fitness::SetFitnessCases  fitness cases type provided.");
     }
 
 }
 
 arma::vec Fitness::GetPopulationFitness(const std::vector<Node*>& population, bool compute, bool use_caching) {
-
     vec fitnesses(population.size());
-
     if (compute) {
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < population.size(); i++) {

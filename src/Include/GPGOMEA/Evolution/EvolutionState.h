@@ -21,6 +21,10 @@
 #include "GPGOMEA/Utils/Utils.h"
 #include "GPGOMEA/Evolution/GenerationHandler.h"
 #include "GPGOMEA/Evolution/NSGA2GenerationHandler.h"
+#include "GPGOMEA/Evolution/NSGA2DPGenerationHandler.h"
+#include "GPGOMEA/Evolution/SPEA2GenerationHandler.h"
+#include "GPGOMEA/Evolution/LengthControlTruncationGenerationHandler.h"
+#include "GPGOMEA/Evolution/AlphaDominance.h"
 #include "GPGOMEA/Utils/ConfigurationOptions.h"
 
 // PROB TYPES

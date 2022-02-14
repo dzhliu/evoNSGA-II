@@ -13,6 +13,8 @@
 
 #include "GPGOMEA/RunHandling/IMSHandler.h"
 
+#include <malloc.h>
+
 using namespace std;
 
 void IMSHandler::Start() {
@@ -40,8 +42,8 @@ void IMSHandler::Start() {
     size_t current_pop_size = st->config->population_size;
     size_t biggest_pop_size_reached = 0;
 
-    while (true) {
-
+    while (true) 
+    {
         // Check if termination criteria is met
         if ((st->fitness->evaluations > 0 && st->fitness->evaluations >= st->config->max_evaluations) ||
                 (st->config->max_generations > 0 && macro_generation >= st->config->max_generations) ||
@@ -55,9 +57,7 @@ void IMSHandler::Start() {
                 exit(1);
             }
         }
-
         for (int i = min_run_idx; i <= min(max_run_idx + 1, (int) max_num_runs - 1); i++) {
-
             // determine previous active run
             int prev_run_idx = -1;
             for (int j = i - 1; j >= min_run_idx; j--) {
@@ -66,7 +66,6 @@ void IMSHandler::Start() {
                     break;
                 }
             }
-
             // check if run should start
             if (!terminated_runs[i] && // must not be terminated, AND
                     (i == min_run_idx // it is the smallest run, OR
@@ -76,7 +75,6 @@ void IMSHandler::Start() {
                 if (i != min_run_idx) { // reset counter for previous run
                     subgenerations_performed[prev_run_idx] = 0;
                 }
-
                 // check if run needs to be initialized
                 if (!initialized_runs[i]) {
                     if (max_num_runs > 1)
@@ -84,18 +82,19 @@ void IMSHandler::Start() {
                     cout << " Initialized run " << i << " with population size " << current_pop_size << " and initial tree height " << st->config->initial_maximum_tree_height << endl;
                     st->config->population_size = current_pop_size;
                     runs[i] = new EvolutionRun(*st);
-
+                    //这里要清楚一个事实：每次实例化一个runs元素，就拷贝一份新的config给这个元素，因此元素内的config的访问方法是runs[i]->xxxxx(xxxxx是config的成员，而原始的config访问方法是st->xxxxx)
                     runs[i]->Initialize();
+                    runs[i]->config->current_generation = 1;
                     initialized_runs[i] = true;
                     biggest_pop_size_reached = current_pop_size;
                     current_pop_size *= 2;
 
                     max_run_idx++;
                 }
-
                 // Perform generation
                 runs[i]->DoGeneration();
-
+                runs[i]->config->current_generation++;
+                
                 // check if new fitness is better
                 if (runs[i]->elitist_fit < elitist_per_run_fit[i]) {
                     elitist_per_run_fit[i] = runs[i]->elitist_fit;
@@ -122,7 +121,6 @@ void IMSHandler::Start() {
                         }
                     }
                 }
-
                 // increment subgeneration performed by this run
                 subgenerations_performed[i] = subgenerations_performed[i] + 1;
             }
@@ -140,6 +138,7 @@ void IMSHandler::Start() {
                 }
 
                 if (should_terminate) {
+                    
                     terminated_runs[i] = true;
                     delete runs[i];
                     runs[i] = NULL;
@@ -160,6 +159,9 @@ void IMSHandler::Start() {
             }
         }
 
+        
+
+
         macro_generation++;
 
         string generation_stats = to_string(macro_generation) + "\t" + to_string(st->timer.toc()) + "\t" + to_string(st->fitness->evaluations) + "\t" + to_string(elitist_fit) + "\t" + to_string(elitist_size) + "\t" + to_string(biggest_pop_size_reached);
@@ -168,6 +170,7 @@ void IMSHandler::Start() {
             Logger::GetInstance()->Log(generation_stats, stats_file);
 
         cout << " > generation " << macro_generation << " - best fit: " << elitist_fit << endl;
+        
 
     }
 
@@ -215,6 +218,51 @@ std::vector<Node*> IMSHandler::GetAllActivePopulations(bool copy_solutions) {
             }
         }
     }
+    return result;
+}
+
+std::vector<Node*> IMSHandler::GetFinalArchive(bool copy_solutions) {
+    vector<Node*> result;
+    result.reserve(10000);
+    for(int i = 0 ; i < runs.size(); i++) {
+        if (runs[i]){
+            for(Node * n : runs[i]->mo_archive) {
+                bool n_is_dominated = false;
+                vector<size_t> dominated_by_n; dominated_by_n.reserve(100);
+                for ( size_t j = 0; j < result.size(); j++) {
+                    Node * current_elite = result[j];
+                    if (current_elite->Dominates(n)) {
+                        n_is_dominated = true;
+                        break;
+                    } else if (n->Dominates(current_elite)) {
+                        dominated_by_n.push_back(j);
+                    }
+                }
+
+            
+                if (n_is_dominated){
+                    continue;
+                }
+
+                // remove from the resulting archive those that are dominated by n
+                size_t number_of_removed = 0;
+                while(dominated_by_n.size() > 0) {
+                    size_t idx_to_consider = dominated_by_n[0] - number_of_removed;
+                    if (copy_solutions) {
+                        result[idx_to_consider]->ClearSubtree();
+                    }
+                    result.erase(result.begin() + idx_to_consider);
+                    number_of_removed++;
+                }
+
+                if (copy_solutions)
+                    result.push_back(n->CloneSubtree());
+                else
+                    result.push_back(n);
+            }
+        }
+    }
+    
     return result;
 }
 

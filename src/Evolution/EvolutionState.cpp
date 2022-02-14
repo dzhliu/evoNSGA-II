@@ -157,8 +157,11 @@ void EvolutionState::SetOptions(int argc, char* argv[]) {
             ("gomeareplaceworst", po::value<double_t>(), "rate of worse performing population to remove and replace with new random solutions (default 0.0)")
             ("linearscaling", "enables linear scaling in symbolic regression (defeault is disabled)")
             ("classweights", po::value<string>(), "use class weighting for classification (default is disabled, use a single '_' to set to training set distribution, else specify manually by underscore-separated weights)")
-            ("pyprobdef", po::value<string>(), "necessary to set name of module and name of function to use to evaluate individuals (separated by '_', so do not use it in their names them)");
-
+            ("pyprobdef", po::value<string>(), "necessary to set name of module and name of function to use to evaluate individuals (separated by '_', so do not use it in their names them)")
+            ("methodtype",po::value<string>(),"alpha_dominance, adaptive_alpha_dominance")
+            ("alphafunction",po::value<string>(),"linear,sigmoid,cosine")
+            ("numofrun",po::value<int>(),"the sequence of this running instances")
+            ("algoframework",po::value<string>(),"the name of algorithm framework, NSGA2 and SPEA2");
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
@@ -351,6 +354,28 @@ void EvolutionState::SetOptions(int argc, char* argv[]) {
     if (config->maximum_solution_size > 0)
         cout << "# maximum solution size: " << config->maximum_solution_size << endl;
 
+    //type of algorithm framework
+    if(vm.count("algoframework"))
+    {
+        config->algorithm_framework = vm["algoframework"].as<string>();
+        std::cout<<"# algoframework: "<<config->algorithm_framework<<std::endl;
+    }
+    else
+    {
+        std::cout<<"HAVEN'T find algorithm framework settings!!!!!"<<std::endl;
+    }
+
+    if(vm.count("methodtype"))
+    {
+        config->methodtype = vm["methodtype"].as<string>();
+        cout<<"# method for NSGAII: "<< config->methodtype << endl;
+    }
+    if(vm.count("alphafunction"))
+    {
+        config->alphafunction = vm["alphafunction"].as<string>();
+        cout<<"# alpha function is: "<< config->alphafunction << endl;
+    }
+
     // GOMEA
     if (vm.count("gomea")) {
         if (prob_name.compare("multiobj")==0){
@@ -395,16 +420,40 @@ void EvolutionState::SetOptions(int argc, char* argv[]) {
 
     } else {
 
+        
         tree_initializer = new TreeInitializer(config->tree_init_type);
-        if (prob_name.compare("multiobj") == 0){
-            generation_handler = new NSGA2GenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
-            cout << "# evolutionary algorithm: tree-based NSGA-II GP " << endl;
+
+        if (prob_name.compare("multiobj") == 0 && config->algorithm_framework.compare("NSGA2") == 0){
+            if(config->methodtype.compare("alpha_dominance") == 0 || config->methodtype.compare("adaptive_alpha_dominance") == 0)
+            {//alpha dominance and adaptive alpha dominance
+                cout << "# evolutionary algorithm: tree-based NSGA-II GP with AlphaDominance"<<std::endl;
+                generation_handler = new AlphaDominance(config, tree_initializer, fitness, semantic_library, semantic_backprop);
+                
+            }
+            else{//classic NSGA2
+                generation_handler = new NSGA2GenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
+                cout << "# evolutionary algorithm: tree-based NSGA-II GP " << endl;
+                //throw std::runtime_error("error, unknown algorithm/method in EvolutionState.cpp");
+            }
+                
+        }
+        else if(prob_name.compare("multiobj") == 0 && config->algorithm_framework.compare("NSGA2DP") == 0){//duplicate control
+                generation_handler = new NSGA2DPGenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
+                cout << "# evolutionary algorithm: NSGAII+DP " << endl;
+        }
+        else if(prob_name.compare("multiobj") == 0 && config->algorithm_framework.compare("SPEA2") == 0){
+            generation_handler = new SPEA2GenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
+            cout << "# evolutionary algorithm: tree-based SPEA2 GP " << endl;
+        }
+        else if(prob_name.compare("multiobj") == 0 && config->algorithm_framework.compare("evoNSGA2") == 0){
+            generation_handler = new LengthControlTruncationGenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
+            cout << "# evolutionary algorithm: LengthControlTruncation" << endl;
         }
         else {
-            generation_handler = new GenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
-            cout << "# evolutionary algorithm: tree-based Standard GP" << endl;
+            //generation_handler = new GenerationHandler(config, tree_initializer, fitness, semantic_library, semantic_backprop);
+            //cout << "# evolutionary algorithm: tree-based Standard GP" << endl;
+            throw std::runtime_error("error! unknown prob_name/algorithm_framework/method_type! Please check EvolutionState.cpp again");
         }
-
 
         // MAXIMUM TREE HEIGHT
         if (vm.count("maxtreeheight")) {
@@ -510,6 +559,12 @@ void EvolutionState::SetOptions(int argc, char* argv[]) {
         cout << "# uniform depth variation: enabled" << endl;
     }
 
+    if(vm.count("numofrun"))
+    {
+        config->num_of_run = vm["numofrun"].as<int>();
+        cout<<"# number of run: "<<config->num_of_run<<endl;
+    }
+   
     cout << "##########################################################################################" << endl;
 
 }

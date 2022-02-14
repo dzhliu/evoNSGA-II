@@ -59,6 +59,7 @@ public:
     Node * GetFinalElitist();
 
     std::vector<Node*> GetAllActivePopulations(bool copy_solutions);
+    std::vector<Node*> GetFinalArchive(bool copy_solutions);
 
     EvolutionState * st;
 

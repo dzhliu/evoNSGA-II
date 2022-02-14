@@ -40,6 +40,8 @@ public:
 
     Node * CloneSubtree() const;
 
+    Node * CloneSubtree(bool if_recursion) const;
+
     std::string GetSubtreeExpression(bool only_active=true);
 
     std::string GetSubtreeHumanExpression();
@@ -70,8 +72,12 @@ public:
     std::vector<arma::vec> GetDesiredOutput(const std::vector<arma::vec> & Y, const arma::mat & X, bool use_caching);
 
     void ClearSubtree();
+    
+    void ClearSubtree(bool if_recursion);
 
     bool Dominates(Node * o);
+
+    bool Dominates(Node * o, double alpha_param1, double alpha_param2);
 
     int Count_N_NaComp(int count=-1);
 
@@ -87,6 +93,21 @@ public:
     arma::vec cached_objectives;
     double_t crowding_distance;
     size_t rank;
+
+    double_t strength;
+    double_t SPEA2_distance;
+    double_t SPEA2_fitness;
+
+
+    double_t parent_exp_len;
+    double_t parent_fitness;
+
+    double_t parent2_exp_len;
+    double_t parent2_fitness;
+
+    short generate_type; //0 means this solution comes from crossover, 1 means comes from mutation, -1 is the default value (error)
+
+    std::vector<double> semantic_description;
 
 
 private:

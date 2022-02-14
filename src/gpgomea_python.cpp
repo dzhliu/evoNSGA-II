@@ -14,6 +14,8 @@
 #include "GPGOMEA/Genotype/Node.h"
 #include "GPGOMEA/Utils/Utils.h"
 
+#include <malloc.h>
+
 namespace py = boost::python;
 namespace np = boost::python::numpy;
 
@@ -80,28 +82,46 @@ public:
     std::ofstream * output_file_stream = NULL;
     std::stringstream * silent_output_stream = NULL;
     std::vector<Node*> final_population;
+    std::vector<Node*> mo_archive;
 
     size_t evaluations = 0;
 
     void reset() {
+        std::cout<<"python script->gpgomea_python.cpp->reset() is called to clean data structure"<<std::endl;
         if (solution)
             solution->ClearSubtree();
         if (imsh)
             delete imsh;
+        
+        std::cout<<"flag1"<<std::endl;
+        
         if (st)
             delete st;
+
+        std::cout<<"flag2"<<std::endl;
+
         if (silent_output_stream)
             delete silent_output_stream;
+        std::cout<<"flag3"<<std::endl;
+
         if (output_file_stream)
             delete output_file_stream;
         for (Node * n : final_population)
             n->ClearSubtree();
+        for (Node * n : mo_archive)
+            n->ClearSubtree();
+        
         solution = NULL;
         imsh = NULL;
         st = NULL;
         silent_output_stream = NULL;
         std::cout.rdbuf(default_output_stream);
         evaluations = 0;
+
+        std::cout<<"start to execute malloc_trim(0)...";
+        malloc_trim(0); 
+        std::cout<<"finished!"<<std::endl;
+
     }
 
     void run(np::ndarray npX, np::ndarray npY) {
@@ -131,6 +151,8 @@ public:
         // reset state that may impact the run
         st->fitness->evaluations = 0;
 
+        
+
         // run
         imsh->Start();
 
@@ -138,6 +160,7 @@ public:
         solution = imsh->GetFinalElitist()->CloneSubtree();
         evaluations = st->fitness->evaluations;
         final_population = imsh->GetAllActivePopulations(true);
+        mo_archive = imsh->GetFinalArchive(true);
 
         // delete run handler
         delete imsh;
@@ -248,6 +271,43 @@ public:
         return return_population;
     };
 
+    boost::python::list get_final_archive(np::ndarray npX) {
+        if (!solution || mo_archive.empty()) {
+            PyErr_SetString(PyExc_TypeError, "get_final_archive error: called before fitting or the archive is empty (did you run multi-objective?)");
+            py::throw_error_already_set();
+        }
+
+        boost::python::list return_archive;
+
+        for(Node * n : mo_archive) {
+            // human_expression
+            std::pair<double_t, double_t> ab = std::make_pair(0.0, 1.0);
+            std::string prefix_expression = n->GetSubtreeExpression();
+            std::string human_expression = n->GetSubtreeHumanExpression();
+            if (st->config->linear_scaling) {
+                arma::vec trainout = n->GetOutput(st->fitness->TrainX, st->config->caching);
+                ab = Utils::ComputeLinearScalingTerms(trainout, st->fitness->TrainY, &st->fitness->trainY_mean, &st->fitness->var_comp_trainY);
+                prefix_expression = "+" + std::to_string(ab.first) + "*" + std::to_string(ab.second) + prefix_expression;
+                human_expression = std::to_string(ab.first) + "+" + std::to_string(ab.second) + "*(" + human_expression + ")";
+            }
+
+            // test set prediction
+            arma::mat X = Utils::ConvertNumpyToArma(npX);
+            arma::vec out = n->GetOutput(X, false);
+            out = ab.first + out * ab.second;
+            np::ndarray prediction = Utils::ToNumpyArray(out);
+
+            // 2nd objective
+            boost::python::tuple tuple;
+            double_t second_obj = n->cached_objectives[1];
+            tuple = boost::python::make_tuple(prediction, n->cached_fitness, second_obj, human_expression, prefix_expression);
+
+            return_archive.append(tuple);
+        }
+
+        return return_archive;
+    }
+
 private:
 
 };
@@ -268,6 +328,8 @@ BOOST_PYTHON_MODULE(gpgomea) {
             .def("get_evaluations", &pyGPGOMEA::get_evaluations)
             .def("get_n_nodes", &pyGPGOMEA::get_n_nodes)
             .def("get_final_population", &pyGPGOMEA::get_final_population)
+            .def("get_final_archive", &pyGPGOMEA::get_final_archive).def("reset", &pyGPGOMEA::reset)
             .def_pickle(GPGOMEA_pickle_suite())
+            
             ;
 }

@@ -300,9 +300,7 @@ Node * SubtreeVariator::FindSubtreeForSemanticBackpropagationReplacement(std::ve
     }
 
     if (const_cdist.second < best_n_dist.second) {
-
         result = new Node(new OpRegrConstant(const_cdist.first));
-
     } else {
 
         result = best_n_dist.first->CloneSubtree();
@@ -333,7 +331,6 @@ Node * SubtreeVariator::FindSubtreeForSemanticBackpropagationReplacement(std::ve
                 // add intercept node 
                 Node * intercept_n = new Node(new OpRegrConstant(normalization_intercept_slope.first));
                 plus = new Node(new OpPlus());
-
                 // add stuff in random order
                 if (arma::randu() < 0.5) {
                     plus->AppendChild(intercept_n);

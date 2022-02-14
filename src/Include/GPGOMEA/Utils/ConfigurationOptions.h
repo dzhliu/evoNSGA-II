@@ -120,6 +120,21 @@ public:
 
     bool running_from_python = false;
 
+    std::string methodtype;
+    std::string alphafunction;
+
+    //the number of current generations is stored here
+    //****it is extremely not reasonable that this parameter is stored here because this parameter is not a parameter for configuration but is a dynamic paramter that will change with iteration goes by
+    //it is proper that this parameter stored in st (ConfigurationOptions object is also stored in st)
+    //unfortunately NSGAIIGenerationHandler can't access to st
+    int current_generation; 
+    
+    int num_of_run;
+
+    std::string algorithm_framework;
+
+    //std::vector<std::vector<double>> archive_objectives;//store the final objectives values of the archive
+
 };
 
 #endif /* CONFIGURATIONOPTIONS_H */

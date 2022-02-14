@@ -165,6 +165,7 @@ void KDTree::clearRecursive(Node* node) {
         clearRecursive(node->next[1]);
 
     delete node;
+    std::cout<<"clearRecursive: ==..delete..== executed"<<std::endl;
 }
 
 void KDTree::deletePoint(arma::vec point) {

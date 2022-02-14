@@ -33,6 +33,8 @@ public:
     
     double_t ComputeLinearScalingMSE(const arma::vec & P, const arma::vec & Y, double_t a, double_t b);
 
+    std::pair<double_t, std::vector<double>> ComputeLinearScalingMSE_withsemanticvector(const arma::vec& P);
+
 private:
 
 
